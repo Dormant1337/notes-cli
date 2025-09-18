@@ -7,8 +7,86 @@
 #define NOTES_FILE "notes.txt"
 
 
+char *get_notes_path();
+
+int show_list(int argc, char *argv[]) {
+        FILE *f = fopen(get_notes_path(), "r");
+        if (!f) {
+                perror("fopen");
+                return 1;
+        }
+        char line[512];
+        int i = 1;
+        while (fgets(line, sizeof(line), f)) {
+                printf("[%d]: %s", i++, line);
+        }
+        fclose(f);
+        return 0;
+}
+
+int clear_notes(int argc, char *argv[]) {
+        FILE *f = fopen(get_notes_path(), "w");
+        if (!f) {
+                perror("fopen");
+                return 1;
+        }
+        fclose(f);
+        puts("All notes cleared!");
+        return 0;
+}
+
+int delete_note(int argc, char *argv[]) {
+        if (argc < 3) {
+                puts("Please provide a note number to delete");
+                return 1;
+        }
+        FILE *f = fopen(get_notes_path(), "r");
+        if (!f) {
+                perror("fopen");
+                return 1;
+        }
+        FILE *temp = fopen("temp.txt", "w");
+        if (!temp) {
+                perror("fopen");
+                fclose(f);
+                return 1;
+        }
+        char line[512];
+        int note_to_delete = atoi(argv[2]);
+        int i = 1;
+        while (fgets(line, sizeof(line), f)) {
+                if (i != note_to_delete) {
+                        fputs(line, temp);
+                }
+                i++;
+        }
+        fclose(f);
+        fclose(temp);
+        remove(get_notes_path());
+        rename("temp.txt", get_notes_path());
+        printf("Note [%s] with content: %s deleted!", argv[2], line);
+        return 0;
+}
 
 
+int add_note(int argc, char *argv[]) {
+        if (argc < 3) {
+                puts("Please provide a note to add");
+                return 1;
+        }
+        FILE *f = fopen(get_notes_path(), "a");
+        if (!f) {
+                perror("fopen");
+                return 1;
+        }
+        for (int i = 2; i < argc; i++) {
+                fprintf(f, "%s ", argv[i]);
+        }
+        fprintf(f, "\n");
+        fclose(f);
+        puts("Note added!");
+        return 0;
+}
 
 char *get_notes_path() {
         static char first_part_of_path[512];
@@ -58,6 +136,7 @@ char *get_notes_path() {
         return result_path;
 }
 
+
 void check_notes_path(char *path) {
         struct stat st;
         char dir[512];
@@ -78,18 +157,16 @@ void check_notes_path(char *path) {
 
 
 int main(int argc, char *argv[]) {
+        char *path = get_notes_path();
         check_notes_path(get_notes_path());
         if (argc < 2 || argv[1][0] == '\0') {
                 puts("Please use arguments");
                 return 1;
         }
 
-        if (strcmp(argv[1], "add") == 0) {
-                puts("Under maintence!");
-        }
-
-        if (strcmp(argv[1], "show-path") == 0) {
-                const char *path = get_notes_path();
-                printf("%s", path);
-        }
+        if (strcmp(argv[1], "--add") == 0) {             add_note(argc, argv);
+        } else if (strcmp(argv[1], "--list") == 0) {     show_list(argc, argv);
+        } else if (strcmp(argv[1], "--delete") == 0) {   delete_note(argc, argv);
+        } else if (strcmp(argv[1], "--clear") == 0) {    clear_notes(argc, argv);
+        } else { puts("Invalid command. Use --add, --list, --delete, or --clear."); return 1; }
 }
